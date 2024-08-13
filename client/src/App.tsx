@@ -111,71 +111,65 @@ function App() {
 
       await myPeer.setLocalDescription(offer);
 
-      const iceCandidates: RTCIceCandidate[] = [];
-
       // * gather all ice candidates before sending offer
-      myPeer.addEventListener("icecandidate", (event) => {
-        console.info("New candidate");
+      myPeer.addEventListener("icecandidate", async (event) => {
         if (!event.candidate) {
           return;
         }
 
-        iceCandidates.push(event.candidate);
+        socket.emit("offererIceCandidate", { iceCandidate: event.candidate });
       });
 
-      // TODO rework to make it better
-      // * wait for 3 seconds until all icecandidates are received
-      console.debug("Waiting for all candidates");
-      await new Promise((res) => setTimeout(res, 1500));
+      socket.on("answererIceCandidate", async ({ iceCandidate }) => {
+        console.debug("answererIceCandidate");
+
+        const rmeoteIceCandidate = new RTCIceCandidate(iceCandidate);
+
+        await myPeer.addIceCandidate(rmeoteIceCandidate);
+      });
 
       console.debug("Emitting new offer");
       socket.emit("newOffer", {
         username,
         offer,
-        iceCandidates,
+        iceCandidates: [],
       });
 
-      socket.on(
-        "answer",
-        async ({ answer, iceCandidates }: { answer: RTCSessionDescriptionInit; iceCandidates: RTCIceCandidate[] }) => {
-          console.debug("Got an answer!");
-          await myPeer.setRemoteDescription(answer);
+      socket.on("answer", async (data: { answer: RTCSessionDescriptionInit; iceCandidates: RTCIceCandidate[] }) => {
+        console.debug("Got an answer!");
+        const answerDescription = new RTCSessionDescription(data.answer);
 
-          iceCandidates.forEach(async (candidate) => {
-            await myPeer.addIceCandidate(candidate);
-          });
-        }
-      );
+        await myPeer.setRemoteDescription(answerDescription);
+      });
     } else {
-      console.debug("accepting existing offer and creating an answer");
-      console.log("room", room);
-
       await createPeer();
 
-      await myPeer.setRemoteDescription(room?.offer!);
+      const offerDescription = new RTCSessionDescription(room.offer!);
 
-      const answer = await myPeer.createAnswer({});
+      await myPeer.setRemoteDescription(offerDescription);
+
+      const answer = await myPeer.createAnswer();
+
       await myPeer.setLocalDescription(answer);
-
-      room?.offerrerIceCandidates.forEach(async (candidate) => {
-        await myPeer.addIceCandidate(candidate);
-      });
-
-      const iceCandidates: RTCIceCandidate[] = [];
 
       // * gather all ice candidates before sending offer
       myPeer.addEventListener("icecandidate", (event) => {
-        console.info("New candidate");
         if (!event.candidate) {
           return;
         }
 
-        iceCandidates.push(event.candidate);
+        socket.emit("answererIceCandidate", { iceCandidate: event.candidate });
       });
 
-      await new Promise((res) => setTimeout(res, 1500));
+      socket.on("offererIceCandidate", async ({ iceCandidate }) => {
+        console.debug("answererIceCandidate");
 
-      socket.emit("answer", { answer, iceCandidates });
+        const rmeoteIceCandidate = new RTCIceCandidate(iceCandidate);
+
+        await myPeer.addIceCandidate(rmeoteIceCandidate);
+      });
+
+      socket.emit("answer", { answer });
     }
   };
 

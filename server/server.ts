@@ -4,7 +4,7 @@ import { createServer } from "http";
 import { Room } from "./types";
 import path from "path";
 
-const port = 8080;
+const port = 3000;
 const app = express();
 app.use(express.static(path.join(__dirname, "../client/build")));
 const server = createServer(app);
@@ -50,6 +50,20 @@ io.on("connection", (socket) => {
     room.offerrerIceCandidates.push(data.candidate);
 
     rooms.set("tes-room", room);
+
+    console.log("oferrer ice candidate");
+
+    socket.broadcast.emit("offererIceCandidate", data);
+  });
+  socket.on("answererIceCandidate", (data: { candidate: RTCIceCandidate }) => {
+    const room = rooms.get("test-room");
+    room.offerrerIceCandidates.push(data.candidate);
+
+    rooms.set("tes-room", room);
+
+    console.log("answerrer ice candidate");
+
+    socket.broadcast.emit("answererIceCandidate", data);
   });
 
   socket.on("disconnect", () => {

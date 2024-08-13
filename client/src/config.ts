@@ -1,3 +1,3 @@
 export const appConfig  = {
-  serverUrl: window.origin.includes("localhost") ? "http://localhost:8080" : window.origin
+  serverUrl: window.origin.includes("localhost") ? "http://localhost:3000" : window.origin
 }
