@@ -193,6 +193,9 @@ function App() {
             playsInline
             muted
             ref={myVideoRef}
+            style={{
+              transform: "rotateY(180deg)",
+            }}
           />
         </div>
       </div>
